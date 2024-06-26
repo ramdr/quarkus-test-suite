@@ -23,6 +23,7 @@ import static jakarta.ws.rs.core.MediaType.TEXT_XML;
 import static org.apache.http.HttpHeaders.ACCEPT_ENCODING;
 import static org.apache.http.HttpHeaders.ACCEPT_LANGUAGE;
 import static org.apache.http.HttpHeaders.CONTENT_TYPE;
+import static org.apache.http.HttpStatus.SC_INTERNAL_SERVER_ERROR;
 import static org.apache.http.HttpStatus.SC_NOT_FOUND;
 import static org.apache.http.HttpStatus.SC_OK;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -35,10 +36,7 @@ import static org.htmlunit.util.MimeType.IMAGE_JPEG;
 import static org.htmlunit.util.MimeType.IMAGE_PNG;
 import static org.htmlunit.util.MimeType.TEXT_CSS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Arrays;
@@ -65,6 +63,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.quarkus.test.bootstrap.Protocol;
 import io.quarkus.test.bootstrap.RestService;
 import io.quarkus.test.scenarios.annotations.EnabledOnQuarkusVersion;
+import io.quarkus.test.security.certificate.CertificateBuilder;
 import io.restassured.http.Header;
 import io.restassured.response.ValidatableResponse;
 import io.smallrye.mutiny.Uni;
@@ -83,7 +82,6 @@ public abstract class BaseHttpAdvancedReactiveIT {
     private static final int TIMEOUT_SEC = 3;
     private static final int RETRY = 3;
     private static final String PASSWORD = "password";
-    private static final String KEY_STORE_PATH = "META-INF/resources/server.keystore";
     private static final String UTF_8_CHARSET = ";charset=UTF-8";
     private static final String CONTENT = "content";
 
@@ -105,7 +103,7 @@ public abstract class BaseHttpAdvancedReactiveIT {
 
     @Test
     @DisplayName("Http/2 Server test")
-    public void http2Server() throws InterruptedException, URISyntaxException {
+    public void http2Server() throws InterruptedException {
         CountDownLatch done = new CountDownLatch(1);
         Uni<JsonObject> content = getApp().mutiny(defaultVertxHttpClientOptions())
                 .getAbs(getAppEndpoint() + "/hello")
@@ -147,24 +145,6 @@ public abstract class BaseHttpAdvancedReactiveIT {
         assertEquals(HttpStatus.SC_OK, health.statusCode());
     }
 
-    @Test
-    @EnabledOnQuarkusVersion(version = "1\\..*", reason = "Redirection is no longer supported in 2.x")
-    public void vertxHttpClientRedirection() throws InterruptedException, URISyntaxException {
-        CountDownLatch done = new CountDownLatch(1);
-        Uni<Integer> statusCode = getApp().mutiny(defaultVertxHttpClientOptions())
-                .getAbs(getAppEndpoint() + "/health").send()
-                .map(HttpResponse::statusCode).ifNoItem()
-                .after(Duration.ofSeconds(TIMEOUT_SEC)).fail().onFailure().retry().atMost(RETRY);
-
-        statusCode.subscribe().with(httpStatusCode -> {
-            assertEquals(SC_OK, httpStatusCode);
-            done.countDown();
-        });
-
-        done.await(TIMEOUT_SEC, TimeUnit.SECONDS);
-        assertThat(done.getCount(), equalTo(0L));
-    }
-
     /**
      * This test use special characters in {@link Path#value()}, that previously caused a validation error and build failure.
      * The bug was fixed in 2.8.3. Disable test in previous Quarkus versions with property
@@ -200,6 +180,46 @@ public abstract class BaseHttpAdvancedReactiveIT {
                 .then().statusCode(SC_OK)
                 .body(FILE, is("File content"))
                 .body(TEXT, is(TEXT));
+    }
+
+    @Test
+    @DisplayName("RESTEasy Reactive Multipart Max Parameters test")
+    public void multiPartFormDataMaxParametersAllowed() {
+        // We are going to reach the MAX_PARAMETERS_ALLOWED in Quarkus Multipart that it's 1000
+        final int PARAMETERS_TO_ADD = 998;
+        // The file itself it's one parameter to add also
+        var request = getApp().given().multiPart(FILE, Paths.get("src", "test", "resources", "file.txt").toFile());
+
+        for (int i = 0; i < PARAMETERS_TO_ADD; i++) {
+            request = request.multiPart("param" + i, "value" + i);
+        }
+        //  now we add the parameter TEXT with formParam, so we will get the max limit 1000
+        request.formParam(TEXT, TEXT);
+        request
+                .post(ROOT_PATH + MULTIPART_FORM_PATH)
+                .then()
+                .statusCode(SC_OK)
+                .body(FILE, is("File content"))
+                .body(TEXT, is(TEXT));
+
+    }
+
+    @DisplayName("RESTEasy Reactive Multipart Over the Max Parameters limit test")
+    @Test
+    public void exceedMultiPartParamsMaxLimit() {
+        // The file itself it's one parameter to add also
+        var request = getApp().given().multiPart(FILE, Paths.get("src", "test", "resources", "file.txt").toFile());
+        // We test the over the max limit of parameters defined by Quarkus that is 1000.
+        final int PARAMETERS_TO_ADD = 999;
+        for (int i = 0; i < PARAMETERS_TO_ADD; i++) {
+            request = request.multiPart("param" + i, "value" + i);
+        }
+        // we add the parameter TEXT with formParam so the total parameters will be 1000 + 1 so we are sending 1001
+        request.formParam(TEXT, TEXT);
+        request
+                .post(ROOT_PATH + MULTIPART_FORM_PATH)
+                .then()
+                .statusCode(SC_INTERNAL_SERVER_ERROR);
     }
 
     @DisplayName("Jakarta REST RouterFilter and Vert.x Web Routes integration")
@@ -355,14 +375,17 @@ public abstract class BaseHttpAdvancedReactiveIT {
                 : ResponsePredicateResult.failure("Expected HTTP/2");
     }
 
-    private WebClientOptions defaultVertxHttpClientOptions() throws URISyntaxException {
+    private WebClientOptions defaultVertxHttpClientOptions() {
         return new WebClientOptions().setProtocolVersion(HttpVersion.HTTP_2).setSsl(true).setVerifyHost(false)
                 .setUseAlpn(true)
                 .setTrustStoreOptions(new JksOptions().setPassword(PASSWORD).setPath(defaultTruststore()));
     }
 
-    private String defaultTruststore() throws URISyntaxException {
-        URL res = getClass().getClassLoader().getResource(KEY_STORE_PATH);
-        return Paths.get(res.toURI()).toFile().getAbsolutePath();
+    private String defaultTruststore() {
+        return getApp()
+                .<CertificateBuilder> getPropertyFromContext(CertificateBuilder.INSTANCE_KEY)
+                .certificates()
+                .get(0)
+                .truststorePath();
     }
 }

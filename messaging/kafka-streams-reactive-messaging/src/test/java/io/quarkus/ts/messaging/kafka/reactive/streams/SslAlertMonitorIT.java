@@ -10,22 +10,16 @@ import io.quarkus.test.services.containers.model.KafkaProtocol;
 import io.quarkus.test.services.containers.model.KafkaVendor;
 
 @QuarkusScenario
+@DisabledOnRHBQandWindows(reason = "QUARKUS-3434")
 public class SslAlertMonitorIT extends BaseKafkaStreamTest {
-    /**
-     * We can't rename this file to use the default SSL settings part of KafkaService.
-     */
-    private static final String TRUSTSTORE_FILE = "strimzi-server-ssl-truststore.p12";
 
-    @KafkaContainer(vendor = KafkaVendor.STRIMZI, protocol = KafkaProtocol.SSL, kafkaConfigResources = TRUSTSTORE_FILE, builder = LocalHostKafkaContainerManagedResourceBuilder.class)
+    @KafkaContainer(vendor = KafkaVendor.STRIMZI, protocol = KafkaProtocol.SSL)
     static final KafkaService kafka = new KafkaService();
 
     @QuarkusApplication
     static final RestService app = new RestService()
-            .withProperty("kafka.bootstrap.servers", kafka::getBootstrapUrl)
-            .withProperty("kafka.security.protocol", "SSL")
-            .withProperty("kafka.ssl.truststore.location", TRUSTSTORE_FILE)
-            .withProperty("kafka.ssl.truststore.password", "top-secret")
-            .withProperty("kafka.ssl.truststore.type", "PKCS12");
+            .withProperties(kafka::getSslProperties)
+            .withProperty("kafka.bootstrap.servers", kafka::getBootstrapUrl);
 
     @Override
     protected String getAppUrl() {

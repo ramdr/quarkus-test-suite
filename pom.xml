@@ -17,11 +17,10 @@
         <failsafe-plugin.version>3.2.5</failsafe-plugin.version>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
-        <quarkus.platform.version>3.8.1</quarkus.platform.version>
-        <quarkus.ide.version>3.8.1</quarkus.ide.version>
-        <quarkus.qe.framework.version>1.4.2.Beta8</quarkus.qe.framework.version>
+        <quarkus.platform.version>3.8.5</quarkus.platform.version>
+        <quarkus.ide.version>3.8.5</quarkus.ide.version>
+        <quarkus.qe.framework.version>1.4.7</quarkus.qe.framework.version>
         <quarkus-qpid-jms.version>2.5.0</quarkus-qpid-jms.version>
-        <apache-httpclient-fluent.version>4.5.14</apache-httpclient-fluent.version>
         <confluent.kafka-avro-serializer.version>7.5.1</confluent.kafka-avro-serializer.version>
         <formatter-maven-plugin.version>2.23.0</formatter-maven-plugin.version>
         <impsort-maven-plugin.version>1.9.0</impsort-maven-plugin.version>
@@ -58,7 +57,7 @@
         <!-- Docker images used by both surefire and failsafe plugin -->
         <postgresql.latest.image>docker.io/postgres:16.1</postgresql.latest.image>
         <mysql.80.image>registry.access.redhat.com/rhscl/mysql-80-rhel7</mysql.80.image>
-        <rhbk.image>registry.redhat.io/rhbk/keycloak-rhel9:22-8</rhbk.image>
+        <rhbk.image>registry.redhat.io/rhbk/keycloak-rhel9:24</rhbk.image>
         <wiremock-jre8.version>2.35.1</wiremock-jre8.version>
         <build-reporter-maven-extension.version>3.4.4</build-reporter-maven-extension.version>
         <reruns>2</reruns>
@@ -94,11 +93,6 @@
                 <groupId>io.confluent</groupId>
                 <artifactId>kafka-avro-serializer</artifactId>
                 <version>${confluent.kafka-avro-serializer.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.httpcomponents</groupId>
-                <artifactId>fluent-hc</artifactId>
-                <version>${apache-httpclient-fluent.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.amqphub.quarkus</groupId>
@@ -295,7 +289,7 @@
                                 <infinispan.image>quay.io/infinispan/server:14.0</infinispan.image>
                                 <infinispan.expected-log>Infinispan Server.*started in</infinispan.expected-log>
                                 <spring.cloud.server.image>quay.io/quarkusqeteam/spring-cloud-config-server:3.0</spring.cloud.server.image>
-                                <keycloak.image>quay.io/keycloak/keycloak:23.0.6</keycloak.image>
+                                <keycloak.image>quay.io/keycloak/keycloak:24.0</keycloak.image>
                                 <bouncycastle.bctls-fips.version>1.0.12.2</bouncycastle.bctls-fips.version>
                                 <rhbk.image>${rhbk.image}</rhbk.image>
                             </systemPropertyVariables>
@@ -439,6 +433,7 @@
                 <module>super-size/many-extensions</module>
                 <module>quarkus-cli</module>
                 <module>logging/jboss</module>
+                <module>logging/thirdparty</module>
                 <module>qute/multimodule</module>
                 <module>qute/synchronous</module>
                 <module>qute/reactive</module>
