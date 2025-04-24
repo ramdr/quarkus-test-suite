@@ -31,6 +31,7 @@ public class ConsulConfigSourceIT {
     static RestService app = new RestService()
             .withProperty("quarkus.consul-config.enabled", "true")
             .withProperty("quarkus.consul-config.properties-value-keys", CONSUL_KEY)
+            .withProperty("CONSUL_DISABLE_PERM_MGMT", "yes")
             .withProperty("quarkus.consul-config.agent.host-port", () -> consul.getConsulEndpoint());
 
     @Test
