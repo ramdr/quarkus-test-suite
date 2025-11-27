@@ -167,6 +167,12 @@ public abstract class BaseHttpAdvancedReactiveIT {
     @Test
     @DisplayName("Http/2 Server test")
     public void http2Server() throws InterruptedException {
+        // Construct the full URL
+        String url = getAppEndpoint() + "/hello";
+        
+        // Log the URL to the console
+        System.out.println("Sending request to URL: " + url);
+        
         CountDownLatch done = new CountDownLatch(1);
         Uni<JsonObject> content = getApp().mutiny(defaultVertxHttpClientOptions())
                 .getAbs(getAppEndpoint() + "/hello")
